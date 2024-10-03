@@ -54,5 +54,8 @@ pkgs.dockerTools.buildLayeredImage {
       ]}"
     ];
     WorkingDir = "/app";
+    ExposedPorts = {
+           "4925/tcp" = {};
+         };
   };
 }
