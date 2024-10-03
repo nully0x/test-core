@@ -36,6 +36,14 @@ jobs:
         run: |
           nix-shell shell.nix --run "cargo build --release"
 
+      - name: Prepare Docker build context
+        run: |
+          mkdir -p docker_context
+          cp target/release/hxckr-core docker_context/
+          cp -r migrations docker_context/
+          cp entrypoint.dev.sh docker_context/
+          cp Dockerfile.minimal docker_context/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -48,8 +56,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          context: .
-          file: Dockerfile.minimal
+          context: docker_context
+          file: docker_context/Dockerfile.minimal
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
