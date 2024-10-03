@@ -23,31 +23,10 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Cache Cargo dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build with Nix
+      - name: Build Docker image with Nix
         run: |
-          nix-shell shell.nix --run "cargo build --release"
-
-      - name: Prepare Docker build context
-        run: |
-          mkdir -p docker_context
-          cp target/release/hxckr-core docker_context/
-          cp -r migrations docker_context/
-          cp entrypoint.dev.sh docker_context/
-          cp Dockerfile.minimal docker_context/
-          # Verify the binary exists and is executable
-          ls -l docker_context/hxckr-core
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+          nix-build docker-image.nix
+          docker load < result
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -55,15 +34,12 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: docker_context
-          file: docker_context/Dockerfile.minimal
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
-            ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && github.ref_name || github.sha }}
+      - name: Tag and push Docker image
+        run: |
+          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
 
       - name: Run migrations (Production)
         if: github.event_name == 'release'
@@ -72,5 +48,9 @@ jobs:
         run: |
           docker run --rm \
             -e DATABASE_URL \
-            ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            ${{ env.IMAGE_NAME }}:latest \
             diesel migration run
+
+      - name: Print image size
+        run: |
+          docker image ls ${{ env.IMAGE_NAME }}
