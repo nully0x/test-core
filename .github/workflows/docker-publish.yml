@@ -22,11 +22,29 @@ jobs:
         uses: cachix/install-nix-action@v20
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+            keep-outputs = true
+            keep-derivations = true
 
-      - name: Build Docker image with Nix
+      - name: Setup Nix caching
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/nix
+            /nix/store
+          key: ${{ runner.os }}-nix-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-
+
+      - name: Build with Nix
         run: |
           nix-build docker-image.nix
-          docker load < result
+          ls -l result
+
+      - name: Load image into Docker
+        run: docker load < result
 
       - name: Verify image contents and entrypoint
         run: |
@@ -59,4 +77,4 @@ jobs:
           echo "This step would normally run:"
           echo "docker run --rm -e DATABASE_URL=... ${{ env.IMAGE_NAME }}:latest"
           echo "However, we're simulating it to avoid actual DB connections in CI."
-          docker run --rm hxckr-core:latest /bin/bash -c "head -n 5 /app/entrypoint.sh" || echo "Failed to read entrypoint.sh"
+          docker run --rm hxckr-core:latest /bin/bash -c "head -n 10 /app/entrypoint.sh" || echo "Failed to read entrypoint.sh"
