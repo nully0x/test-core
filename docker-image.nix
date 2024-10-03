@@ -15,6 +15,17 @@ let
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
   };
 
+  entrypoint-script = pkgs.writeScriptBin "entrypoint.sh" ''
+    #!${pkgs.bash}/bin/bash
+    set -e
+
+    echo "Running database migrations..."
+    ${pkgs.diesel-cli}/bin/diesel migration run
+
+    echo "Starting hxckr-core..."
+    exec ${hxckr-core}/bin/hxckr-core
+  '';
+
 in
 pkgs.dockerTools.buildLayeredImage {
   name = "hxckr-core";
@@ -30,10 +41,11 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.postgresql
     pkgs.cacert
     pkgs.libiconv
+    entrypoint-script
   ];
 
   config = {
-    Cmd = [ "${hxckr-core}/bin/hxckr-core" ];
+    Cmd = [ "${entrypoint-script}/bin/entrypoint.sh" ];
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin"
