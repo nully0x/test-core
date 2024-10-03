@@ -98,7 +98,7 @@ where
         if session_token.is_empty() {
             let error_response = json!({
                 "status": "error",
-                "message": "Missing session token"
+                "message": "Missing session toke"
             });
             let response = HttpResponse::Unauthorized()
                 .content_type("application/json")
