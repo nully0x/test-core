@@ -37,6 +37,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.diesel-cli
     pkgs.bash
     pkgs.coreutils
+    pkgs.findutils  # Provides the 'which' command
     pkgs.openssl
     pkgs.postgresql
     pkgs.cacert
@@ -48,7 +49,7 @@ pkgs.dockerTools.buildLayeredImage {
     Cmd = [ "${entrypoint-script}/bin/entrypoint.sh" ];
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-      "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin"
+      "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin:${pkgs.findutils}/bin"
       "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
         pkgs.openssl
         pkgs.postgresql
