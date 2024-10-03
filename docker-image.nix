@@ -15,21 +15,6 @@ let
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
   };
 
-  diesel-cli = pkgs.rustPlatform.buildRustPackage {
-    pname = "diesel_cli";
-    version = "2.2.4";
-    src = pkgs.fetchFromGitHub {
-      owner = "diesel-rs";
-      repo = "diesel";
-      rev = "v2.2.4";
-      sha256 = "sha256-zS3MxI1cj6r0UGdlmtDu0aTBmjbHLz+BdogS2vFQAKo=";
-    };
-    cargoLock.lockFile = ./Cargo.lock;
-    buildFeatures = [ "postgres" ];
-    nativeBuildInputs = [ pkgs.pkg-config ];
-    buildInputs = [ pkgs.openssl pkgs.postgresql ];
-  };
-
 in
 pkgs.dockerTools.buildLayeredImage {
   name = "hxckr-core";
@@ -38,7 +23,7 @@ pkgs.dockerTools.buildLayeredImage {
 
   contents = [
     hxckr-core
-    diesel-cli
+    pkgs.diesel-cli
     pkgs.bash
     pkgs.coreutils
     pkgs.openssl
@@ -51,7 +36,7 @@ pkgs.dockerTools.buildLayeredImage {
     Cmd = [ "${hxckr-core}/bin/hxckr-core" ];
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-      "PATH=/bin:${hxckr-core}/bin:${diesel-cli}/bin"
+      "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin"
       "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
         pkgs.openssl
         pkgs.postgresql
