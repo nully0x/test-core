@@ -15,16 +15,7 @@ let
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
   };
 
-  entrypoint-script = pkgs.writeScriptBin "entrypoint.sh" ''
-    #!${pkgs.bash}/bin/bash
-    set -e
-
-    echo "Running database migrations..."
-    ${pkgs.diesel-cli}/bin/diesel migration run
-
-    echo "Starting hxckr-core..."
-    exec ${hxckr-core}/bin/hxckr-core
-  '';
+  entrypoint-script = ./entrypoint.dev.sh;
 
 in
 pkgs.dockerTools.buildLayeredImage {
@@ -37,16 +28,22 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.diesel-cli
     pkgs.bash
     pkgs.coreutils
-    pkgs.findutils  # Provides the 'which' command
+    pkgs.findutils
     pkgs.openssl
     pkgs.postgresql
     pkgs.cacert
     pkgs.libiconv
-    entrypoint-script
   ];
 
+  extraCommands = ''
+    mkdir -p app/migrations
+    cp -r ${./migrations}/* app/migrations/
+    cp ${entrypoint-script} app/entrypoint.sh
+    chmod +x app/entrypoint.sh
+  '';
+
   config = {
-    Cmd = [ "${entrypoint-script}/bin/entrypoint.sh" ];
+    Cmd = [ "/app/entrypoint.sh" ];
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
       "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin:${pkgs.findutils}/bin"
@@ -56,6 +53,6 @@ pkgs.dockerTools.buildLayeredImage {
         pkgs.libiconv
       ]}"
     ];
-    WorkingDir = "/";
+    WorkingDir = "/app";
   };
 }
