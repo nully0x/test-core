@@ -34,13 +34,12 @@ jobs:
 
       - name: Build with Nix
         run: |
-          nix-shell shell.nix --run "cargo build --release && cargo install diesel_cli --no-default-features --features postgres"
+          nix-shell shell.nix --run "cargo build --release"
 
       - name: Prepare Docker build context
         run: |
           mkdir -p docker_context
           cp target/release/hxckr-core docker_context/
-          cp ~/.cargo/bin/diesel docker_context/
           cp -r migrations docker_context/
           cp entrypoint.dev.sh docker_context/
           cp Dockerfile.minimal docker_context/
