@@ -1,10 +1,16 @@
 FROM rust:1.80-slim-bookworm as builder
 
+RUN apt-get update && \
+    apt-get install -y libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN cargo install diesel_cli --no-default-features --features postgres
 
 FROM debian:bookworm-slim
 
-RUN apt-get update && apt-get install -y libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin/diesel
 COPY hxckr-core /usr/local/bin/hxckr-core
