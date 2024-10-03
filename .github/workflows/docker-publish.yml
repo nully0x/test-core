@@ -1,0 +1,66 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: ["main"]
+  release:
+    types: [created]
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/hxckr-core
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build with Nix
+        run: |
+          nix-shell --run "cargo build --release"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile.minimal
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
+            ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && github.ref_name || github.sha }}
+
+      - name: Run migrations (Production)
+        if: github.event_name == 'release'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          docker run --rm \
+            -e DATABASE_URL \
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            diesel migration run

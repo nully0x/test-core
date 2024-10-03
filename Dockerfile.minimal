@@ -1,0 +1,10 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y libpq-dev && rm -rf /var/lib/apt/lists/*
+
+COPY target/release/hxckr-core /usr/local/bin/hxckr-core
+COPY migrations /migrations
+COPY entrypoint.dev.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
