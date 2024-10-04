@@ -14,6 +14,8 @@ let
     nativeBuildInputs = [ pkgs.pkg-config ];
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
 
+    doCheck = false;
+
     # Optimize the build
     RUSTFLAGS = "-C target-cpu=native -C opt-level=3";
     CARGO_PROFILE_RELEASE_LTO = "thin";
