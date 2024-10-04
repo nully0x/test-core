@@ -2,7 +2,12 @@
 
 let
   rustOverlay = import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz");
-  pkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
+
+  pkgs = import <nixpkgs> {
+    overlays = [ rustOverlay ];
+    crossSystem = null;
+  };
+
   rust = pkgs.rust-bin.stable."1.80.0".default;
 
   buildFor = system:
@@ -12,14 +17,19 @@ let
         crossSystem = pkgs.lib.systems.elaborate system;
         overlays = [ rustOverlay ];
       };
+
+      opensslCross = pkgsCross.openssl.override {
+        static = true;
+      };
+
     in pkgsCross.rustPlatform.buildRustPackage {
       pname = "hxckr-core";
       version = "0.1.0";
       src = ./.;
       cargoLock.lockFile = ./Cargo.lock;
 
-      nativeBuildInputs = [ pkgsCross.pkg-config ];
-      buildInputs = [ pkgsCross.openssl pkgsCross.postgresql ];
+      nativeBuildInputs = with pkgsCross; [ pkg-config ];
+      buildInputs = with pkgsCross; [ opensslCross postgresql ];
 
       doCheck = false;
 
@@ -30,6 +40,10 @@ let
       CARGO_PROFILE_RELEASE_PANIC = "abort";
       CARGO_PROFILE_RELEASE_INCREMENTAL = "false";
       CARGO_PROFILE_RELEASE_DEBUG = "0";
+
+      OPENSSL_DIR = "${opensslCross.dev}";
+      OPENSSL_LIB_DIR = "${opensslCross.out}/lib";
+      OPENSSL_INCLUDE_DIR = "${opensslCross.dev}/include";
 
       stripAllList = [ "bin" ];
 
