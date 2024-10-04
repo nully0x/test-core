@@ -5,25 +5,43 @@ let
   pkgs = import <nixpkgs> { overlays = [ rustOverlay ]; };
   rust = pkgs.rust-bin.stable."1.80.0".default;
 
+  cargoChefPrepare = pkgs.stdenv.mkDerivation {
+    name = "cargo-chef-prepare";
+    src = ./.;
+    nativeBuildInputs = [ pkgs.cargo-chef rust ];
+    buildPhase = ''
+      cargo chef prepare --recipe-path $out
+    '';
+    installPhase = "true";
+    dontFixup = true;
+  };
+
+  cargoChefCook = pkgs.stdenv.mkDerivation {
+    name = "cargo-chef-cook";
+    src = ./.;
+    nativeBuildInputs = [ pkgs.cargo-chef rust pkgs.pkg-config ];
+    buildInputs = [ pkgs.openssl pkgs.postgresql ];
+    buildPhase = ''
+      cp ${cargoChefPrepare} recipe.json
+      cargo chef cook --release --recipe-path recipe.json
+      mkdir -p $out
+      cp -r target $out/
+    '';
+    installPhase = "true";
+    dontFixup = true;
+  };
+
   hxckr-core = pkgs.rustPlatform.buildRustPackage {
     pname = "hxckr-core";
     version = "0.1.0";
     src = ./.;
     cargoLock.lockFile = ./Cargo.lock;
 
-    nativeBuildInputs = [ pkgs.pkg-config pkgs.cargo-chef ];
+    nativeBuildInputs = [ pkgs.pkg-config ];
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
 
-    # Use cargo-chef to optimize the build
-    buildPhase = ''
-      # Prepare the recipe
-      cargo chef prepare --recipe-path recipe.json
-
-      # Cook the dependencies
-      cargo chef cook --release --recipe-path recipe.json
-
-      # Build the project
-      cargo build --release
+    preBuild = ''
+      cp -r ${cargoChefCook}/target .
     '';
   };
 
