@@ -46,7 +46,8 @@ pkgs.dockerTools.buildLayeredImage {
   contents = [
     hxckr-core
     pkgs.diesel-cli
-    pkgs.busybox
+    pkgs.bash
+    pkgs.coreutils
     pkgs.findutils
     pkgs.openssl
     pkgs.postgresql.lib
