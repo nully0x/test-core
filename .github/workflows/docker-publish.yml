@@ -39,8 +39,11 @@ jobs:
 
       - name: Build with Nix
         run: |
+          export NIX_BUILD_CORES=$(nproc)
           nix-build docker-image.nix
           ls -l result
+        env:
+          NIX_BUILD_CORES: ${{ steps.cores.outputs.count }}
 
       - name: Load image into Docker
         run: docker load < result

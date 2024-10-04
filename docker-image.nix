@@ -15,9 +15,19 @@ let
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
 
     # Optimize the build
-    RUSTFLAGS = "-C target-cpu=native";
-    CARGO_PROFILE_RELEASE_LTO = "true";
-    CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "1";
+    RUSTFLAGS = "-C target-cpu=native -C opt-level=3";
+    CARGO_PROFILE_RELEASE_LTO = "thin";
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "16";
+    CARGO_PROFILE_RELEASE_OPT_LEVEL = "3";
+    CARGO_PROFILE_RELEASE_PANIC = "abort";
+    CARGO_PROFILE_RELEASE_INCREMENTAL = "false";
+    CARGO_PROFILE_RELEASE_DEBUG = "0";
+
+    # Use all available cores
+    NIX_BUILD_CORES = 0;
+    preBuild = ''
+      export CARGO_BUILD_JOBS=$NIX_BUILD_CORES
+    '';
   };
 
   entrypoint-script = ./entrypoint.dev.sh;
