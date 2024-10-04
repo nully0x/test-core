@@ -14,6 +14,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -33,28 +36,28 @@ jobs:
         with:
           path: |
             ~/.cache/nix
-          key: ${{ runner.os }}-nix-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
+          key: ${{ runner.os }}-nix-${{ matrix.arch }}-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-nix-
+            ${{ runner.os }}-nix-${{ matrix.arch }}-
 
       - name: Build with Nix
         run: |
           export NIX_BUILD_CORES=$(nproc)
-          nix-build docker-image.nix
-          ls -l result
+          nix-build docker-image.nix -A ${{ matrix.arch }} -o result-${{ matrix.arch }}
+          ls -l result-${{ matrix.arch }}
         env:
           NIX_BUILD_CORES: ${{ steps.cores.outputs.count }}
 
       - name: Load image into Docker
-        run: docker load < result
+        run: docker load < result-${{ matrix.arch }}
 
       - name: Verify image contents and entrypoint
         run: |
-          docker run --rm hxckr-core:latest ls -l /app || echo "Failed to list /app contents"
-          docker run --rm hxckr-core:latest ls -l /app/migrations || echo "Failed to list migrations"
-          docker run --rm hxckr-core:latest cat /app/entrypoint.sh || echo "Failed to cat entrypoint.sh"
-          docker run --rm hxckr-core:latest which diesel || echo "Failed to locate diesel"
-          docker run --rm hxckr-core:latest diesel --version || echo "Failed to get diesel version"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app || echo "Failed to list /app contents"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest ls -l /app/migrations || echo "Failed to list migrations"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest cat /app/entrypoint.sh || echo "Failed to cat entrypoint.sh"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest which diesel || echo "Failed to locate diesel"
+          docker run --rm hxckr-core:${{ matrix.arch }}-latest diesel --version || echo "Failed to get diesel version"
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
@@ -64,10 +67,28 @@ jobs:
 
       - name: Tag and push Docker image
         run: |
-          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
-          docker push ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          docker tag hxckr-core:${{ matrix.arch }}-latest ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}-${{ matrix.arch }}
+          docker push ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}-${{ matrix.arch }}
 
       - name: Print image size and details
         run: |
-          docker image ls hxckr-core:latest
-          docker history hxckr-core:latest
+          docker image ls hxckr-core:${{ matrix.arch }}-latest
+          docker history hxckr-core:${{ matrix.arch }}-latest
+
+  create-manifest:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Create and push manifest
+        run: |
+          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          docker manifest create ${{ env.IMAGE_NAME }}:$TAG \
+            ${{ env.IMAGE_NAME }}:$TAG-amd64 \
+            ${{ env.IMAGE_NAME }}:$TAG-arm64
+          docker manifest push ${{ env.IMAGE_NAME }}:$TAG
