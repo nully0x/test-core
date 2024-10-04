@@ -16,8 +16,13 @@ let
 
     # Use cargo-chef to optimize the build
     buildPhase = ''
-      cargo chef prepare
-      cargo chef cook --release
+      # Prepare the recipe
+      cargo chef prepare --recipe-path recipe.json
+
+      # Cook the dependencies
+      cargo chef cook --release --recipe-path recipe.json
+
+      # Build the project
       cargo build --release
     '';
   };
