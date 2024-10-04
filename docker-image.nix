@@ -12,7 +12,7 @@ let
     cargoLock.lockFile = ./Cargo.lock;
 
     nativeBuildInputs = [ pkgs.pkg-config ];
-    buildInputs = [ pkgs.openssl pkgs.postgresql ];
+    buildInputs = [ pkgs.openssl pkgs.libiconv];
 
     # Optimize the build
     RUSTFLAGS = "-C target-cpu=native -C opt-level=3";
@@ -43,9 +43,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.diesel-cli
     pkgs.bash
     pkgs.coreutils
-    pkgs.findutils
     pkgs.openssl
-    pkgs.postgresql
     pkgs.cacert
     pkgs.libiconv
   ];
@@ -61,10 +59,9 @@ pkgs.dockerTools.buildLayeredImage {
     Cmd = [ "/app/entrypoint.sh" ];
     Env = [
       "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-      "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin:${pkgs.findutils}/bin"
+      "PATH=/bin:${hxckr-core}/bin:${pkgs.diesel-cli}/bin"
       "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
         pkgs.openssl
-        pkgs.postgresql
         pkgs.libiconv
       ]}"
     ];

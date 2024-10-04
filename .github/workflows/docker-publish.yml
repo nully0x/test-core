@@ -64,19 +64,10 @@ jobs:
 
       - name: Tag and push Docker image
         run: |
-          docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker tag hxckr-core:latest ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
-          docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.IMAGE_NAME }}:${{ github.event_name == 'release' && 'latest' || 'dev' }}
 
       - name: Print image size and details
         run: |
           docker image ls hxckr-core:latest
           docker history hxckr-core:latest
-
-      - name: Test entrypoint script (simulated)
-        run: |
-          echo "This step would normally run:"
-          echo "docker run --rm -e DATABASE_URL=... ${{ env.IMAGE_NAME }}:latest"
-          echo "However, we're simulating it to avoid actual DB connections in CI."
-          docker run --rm hxckr-core:latest /bin/bash -c "head -n 10 /app/entrypoint.sh" || echo "Failed to read entrypoint.sh"
