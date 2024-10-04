@@ -49,7 +49,7 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.busybox
     pkgs.findutils
     pkgs.openssl
-    (pkgs.postgresql.lib.override { enableSystemd = false; })
+    pkgs.postgresql.lib
     pkgs.cacert
     pkgs.libiconv
   ];
