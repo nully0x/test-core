@@ -15,13 +15,19 @@ let
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
   };
 
-  entrypoint-script = ./entrypoint.dev.sh;
+  entrypoint-script = pkgs.writeScriptBin "entrypoint.sh" (builtins.readFile ./entrypoint.dev.sh);
+
+  app-dir = pkgs.runCommand "app-dir" {} ''
+    mkdir -p $out/app/migrations
+    cp -r ${./migrations}/* $out/app/migrations/
+    cp ${entrypoint-script}/bin/entrypoint.sh $out/app/
+    chmod +x $out/app/entrypoint.sh
+  '';
 
 in
-pkgs.dockerTools.buildLayeredImage {
+pkgs.dockerTools.buildImage {
   name = "hxckr-core";
   tag = "latest";
-  created = "now";
 
   contents = [
     hxckr-core
@@ -33,14 +39,8 @@ pkgs.dockerTools.buildLayeredImage {
     pkgs.postgresql
     pkgs.cacert
     pkgs.libiconv
+    app-dir
   ];
-
-  extraCommands = ''
-    mkdir -p app/migrations
-    cp -r ${./migrations}/* app/migrations/
-    cp ${entrypoint-script} app/entrypoint.sh
-    chmod +x app/entrypoint.sh
-  '';
 
   config = {
     Cmd = [ "/app/entrypoint.sh" ];
@@ -55,7 +55,7 @@ pkgs.dockerTools.buildLayeredImage {
     ];
     WorkingDir = "/app";
     ExposedPorts = {
-           "4925/tcp" = {};
-         };
+      "4925/tcp" = {};
+    };
   };
 }

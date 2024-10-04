@@ -33,7 +33,6 @@ jobs:
         with:
           path: |
             ~/.cache/nix
-            /nix/store
           key: ${{ runner.os }}-nix-${{ hashFiles('**/docker-image.nix', '**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-nix-
