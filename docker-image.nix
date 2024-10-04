@@ -11,23 +11,24 @@ let
     src = ./.;
     cargoLock.lockFile = ./Cargo.lock;
 
-    nativeBuildInputs = [ pkgs.pkg-config ];
+    nativeBuildInputs = [ pkgs.pkg-config pkgs.cargo-chef ];
     buildInputs = [ pkgs.openssl pkgs.postgresql ];
+
+    # Use cargo-chef to optimize the build
+    buildPhase = ''
+      cargo chef prepare
+      cargo chef cook --release
+      cargo build --release
+    '';
   };
 
-  entrypoint-script = pkgs.writeScriptBin "entrypoint.sh" (builtins.readFile ./entrypoint.dev.sh);
-
-  app-dir = pkgs.runCommand "app-dir" {} ''
-    mkdir -p $out/app/migrations
-    cp -r ${./migrations}/* $out/app/migrations/
-    cp ${entrypoint-script}/bin/entrypoint.sh $out/app/
-    chmod +x $out/app/entrypoint.sh
-  '';
+  entrypoint-script = ./entrypoint.dev.sh;
 
 in
-pkgs.dockerTools.buildImage {
+pkgs.dockerTools.buildLayeredImage {
   name = "hxckr-core";
   tag = "latest";
+  created = "now";
 
   contents = [
     hxckr-core
@@ -39,8 +40,14 @@ pkgs.dockerTools.buildImage {
     pkgs.postgresql
     pkgs.cacert
     pkgs.libiconv
-    app-dir
   ];
+
+  extraCommands = ''
+    mkdir -p app/migrations
+    cp -r ${./migrations}/* app/migrations/
+    cp ${entrypoint-script} app/entrypoint.sh
+    chmod +x app/entrypoint.sh
+  '';
 
   config = {
     Cmd = [ "/app/entrypoint.sh" ];
