@@ -67,13 +67,20 @@ jobs:
       - name: Tag and push Docker image
         run: |
           TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
-          docker tag hxckr-core:${{ matrix.arch }}-latest ${{ env.IMAGE_NAME }}:$TAG-${{ matrix.arch }}
-          docker push ${{ env.IMAGE_NAME }}:$TAG-${{ matrix.arch }}
+          ARCH=${{ matrix.arch }}
+          docker tag hxckr-core:$ARCH-latest ${{ env.IMAGE_NAME }}:$TAG-$ARCH
+          docker push ${{ env.IMAGE_NAME }}:$TAG-$ARCH
+          # Print image details
+          docker inspect ${{ env.IMAGE_NAME }}:$TAG-$ARCH
 
       - name: Print image size and details
         run: |
           docker image ls hxckr-core:${{ matrix.arch }}-latest
           docker history hxckr-core:${{ matrix.arch }}-latest
+      - name: Print image info
+        run: |
+          TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
+          docker inspect ${{ env.IMAGE_NAME }}:$TAG-${{ matrix.arch }}
 
   create-manifest:
     needs: build-and-push
@@ -92,11 +99,16 @@ jobs:
         run: |
           TAG=${{ github.event_name == 'release' && 'latest' || 'dev' }}
           docker manifest create ${{ env.IMAGE_NAME }}:$TAG \
-            ${{ env.IMAGE_NAME }}:$TAG-amd64 \
-            ${{ env.IMAGE_NAME }}:$TAG-arm64
+            --amend ${{ env.IMAGE_NAME }}:$TAG-amd64 \
+            --amend ${{ env.IMAGE_NAME }}:$TAG-arm64
           docker manifest annotate ${{ env.IMAGE_NAME }}:$TAG ${{ env.IMAGE_NAME }}:$TAG-amd64 --os linux --arch amd64
           docker manifest annotate ${{ env.IMAGE_NAME }}:$TAG ${{ env.IMAGE_NAME }}:$TAG-arm64 --os linux --arch arm64 --variant v8
-          docker manifest push ${{ env.IMAGE_NAME }}:$TAG
+          docker manifest push --purge ${{ env.IMAGE_NAME }}:$TAG
+          # Inspect individual images
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG-amd64
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG-arm64
+          # Inspect manifest
+          docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:$TAG
 
       - name: Verify manifest
         run: |
